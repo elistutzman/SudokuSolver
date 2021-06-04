@@ -52,10 +52,14 @@ Base.size(s::ClassicSudoku) = s.dims
 Base.similar(s::ClassicSudoku, ::Type{T}, dims::Dims) where {T} = _ClassicSudoku(T, dims, s.vals, false)
 
 function Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N}
-	try
-		get(s.data, I, zero(T))
-	catch
-		Missing
+	if hasmethod(zero, Tuple{T})
+		try
+			get(s.data, I, zero(T))
+		catch
+			Missing
+		end
+	else
+		get(s.data, I, Missing)
 	end
 end
 
