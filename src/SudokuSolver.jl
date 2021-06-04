@@ -97,7 +97,7 @@ function solve!(s::ClassicSudoku)
 	# Initialize starting conditions
 	for i=1:n, j=1:n
 		if s[i, j] ∈ s.vals
-			@constraint(model, X[i, j, indexin(s[i, j], s.vals)] == 1)
+			@constraint(model, X[i, j, findfirst(isequal(s[i, j]), s.vals)] == 1)
 		end
 	end
 
