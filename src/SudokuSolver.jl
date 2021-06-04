@@ -11,46 +11,53 @@ struct ClassicSudoku{T, N} <: AbstractArray{T, N}
 	vals::Vector{T}
 end
 
-ClassicSudoku(dims::Int) = ClassicSudoku(Int, (dims, dims), collect(1:dims))
+ClassicSudoku(dims::Int) = _ClassicSudoku(Int, (dims, dims), collect(1:dims), true)
 
-ClassicSudoku(dims::Int, vals::Vector{T}) where {T} = ClassicSudoku(T, (dims, dims), vals)
+ClassicSudoku(dims::Int, vals::Vector{T}) where {T} = _ClassicSudoku(T, (dims, dims), vals, true)
 
-ClassicSudoku(dims::NTuple{2, Int}) = ClassicSudoku(Int, dims, collect(1:dims[1]))
+ClassicSudoku(dims::NTuple{2, Int}) = _ClassicSudoku(Int, dims, collect(1:dims[1]), true)
 
-ClassicSudoku(dims::NTuple{2, Int}, vals::Vector{T}) where {T} = ClassicSudoku(T, dims, vals)
+ClassicSudoku(dims::NTuple{2, Int}, vals::Vector{T}) where {T} = _ClassicSudoku(T, dims, vals, true)
 
-ClassicSudoku(vals::Vector{T}) where {T} = ClassicSudoku(T, (length(vals), length(vals)), vals)
+ClassicSudoku(vals::Vector{T}) where {T} = _ClassicSudoku(T, (length(vals), length(vals)), vals, true)
 
-ClassicSudoku(::Type{T}, dims::Int, vals::Vector{T}) where {T} = ClassicSudoku(T, (dims, dims), vals)
+ClassicSudoku(::Type{T}, dims::Int, vals::Vector{T}) where {T} = _ClassicSudoku(T, (dims, dims), vals, true)
 
-function ClassicSudoku(::Type{T}, dims::NTuple{2, Int}, vals::Vector{T}) where {T}
-	# if dims[1] != dims[2]
-	# 	error("Dimensions are not equal")
-	# end
+function _ClassicSudoku(::Type{T}, dims::NTuple{2, Int}, vals::Vector{T}, init::Bool) where {T}
+	if init
+		if dims[1] != dims[2]
+			error("Dimensions are not equal")
+		end
 
-	# try
-	# 	Int(sqrt(dims[1]))
-	# catch
-	# 	error("Dimensions are not square")
-	# end
+		try
+			Int(sqrt(dims[1]))
+		catch
+			error("Dimensions are not square")
+		end
 
-	# if length(vals) != dims[1]
-	# 	error("Length of vals does not match dimensions")
-	# end
+		if length(vals) != dims[1]
+			error("Length of vals does not match dimensions")
+		end
 
-	# if length(unique(vals)) != dims[1]
-	# 	error("Number of unique vals does not match dimensions")
-	# end
+		if length(unique(vals)) != dims[1]
+			error("Number of unique vals does not match dimensions")
+		end
+	end
 
     ClassicSudoku{T, 2}(Dict{NTuple{2, Int}, T}(), dims, vals)
 end
 
 Base.size(s::ClassicSudoku) = s.dims
 
-Base.similar(s::ClassicSudoku, ::Type{T}, dims::Dims) where {T} = ClassicSudoku(dims, s.vals)
+Base.similar(s::ClassicSudoku, ::Type{T}, dims::Dims) where {T} = _ClassicSudoku(T, dims, s.vals, false)
 
-Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N} = hasmethod(zero, Tuple{T}) ? get(s.data, I, zero(T)) : get(s.data, I, Missing)
-
+function Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N}
+	try
+		get(s.data, I, zero(T))
+	catch
+		Missing
+	end
+end
 Base.setindex!(s::ClassicSudoku{T, N}, v, I::Vararg{Int, N}) where {T, N} = (s.data[I] = v)
 
 function solve!(s::ClassicSudoku)
