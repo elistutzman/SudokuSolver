@@ -8,17 +8,48 @@ export ClassicSudoku, solve!
 struct ClassicSudoku{T, N} <: AbstractArray{T, N}
 	data::Dict{NTuple{N, Int}, T}
 	dims::NTuple{N, Int}
+	vals::Vector{T}
 end
 
-ClassicSudoku(dims::Int) = ClassicSudoku((dims, dims))
+ClassicSudoku(dims::Int) = ClassicSudoku(Int, (dims, dims), collect(1:dims))
 
-ClassicSudoku(dims::NTuple{2, Int}) = ClassicSudoku{Int, 2}(Dict{NTuple{2, Int}, Int}(), dims)
+ClassicSudoku(dims::Int, vals::Vector{T}) where {T} = ClassicSudoku(T, (dims, dims), vals)
+
+ClassicSudoku(dims::NTuple{2, Int}) = ClassicSudoku(Int, dims, collect(1:dims[1]))
+
+ClassicSudoku(dims::NTuple{2, Int}, vals::Vector{T}) where {T} = ClassicSudoku(T, dims, vals)
+
+ClassicSudoku(vals::Vector{T}) where {T} = ClassicSudoku(T, (length(vals), length(vals)), vals)
+
+ClassicSudoku(::Type{T}, dims::Int, vals::Vector{T}) where {T} = ClassicSudoku(T, (dims, dims), vals)
+
+function ClassicSudoku(::Type{T}, dims::NTuple{2, Int}, vals::Vector{T}) where {T}
+	# if dims[1] != dims[2]
+	# 	error("Dimensions are not equal")
+	# end
+
+	# try
+	# 	Int(sqrt(dims[1]))
+	# catch
+	# 	error("Dimensions are not square")
+	# end
+
+	# if length(vals) != dims[1]
+	# 	error("Length of vals does not match dimensions")
+	# end
+
+	# if length(unique(vals)) != dims[1]
+	# 	error("Number of unique vals does not match dimensions")
+	# end
+
+    ClassicSudoku{T, 2}(Dict{NTuple{2, Int}, T}(), dims, vals)
+end
 
 Base.size(s::ClassicSudoku) = s.dims
 
-Base.similar(s::ClassicSudoku, ::Type{T}, dims::Dims) where {T} = ClassicSudoku(dims)
+Base.similar(s::ClassicSudoku, ::Type{T}, dims::Dims) where {T} = ClassicSudoku(dims, s.vals)
 
-Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N} = get(s.data, I, zero(T))
+Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N} = hasmethod(zero, Tuple{T}) ? get(s.data, I, zero(T)) : get(s.data, I, Missing)
 
 Base.setindex!(s::ClassicSudoku{T, N}, v, I::Vararg{Int, N}) where {T, N} = (s.data[I] = v)
 
@@ -51,8 +82,8 @@ function solve!(s::ClassicSudoku)
 
 	# Initialize starting conditions
 	for i=1:n, j=1:n
-		if s[i, j] != 0
-			@constraint(model, X[i, j, s[i, j]] == 1)
+		if s[i, j] ∈ s.vals
+			@constraint(model, X[i, j, indexin(s[i, j], s.vals)] == 1)
 		end
 	end
 
@@ -66,7 +97,7 @@ function solve!(s::ClassicSudoku)
 
 	for i=1:n, j=1:n, k=1:n
 		if solved_X[i, j, k] > 0
-			s[i, j] = k
+			s[i, j] = s.vals[k]
 		end
 	end
 
