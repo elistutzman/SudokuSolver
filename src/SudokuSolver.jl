@@ -58,7 +58,14 @@ function Base.getindex(s::ClassicSudoku{T, N}, I::Vararg{Int, N}) where {T, N}
 		Missing
 	end
 end
-Base.setindex!(s::ClassicSudoku{T, N}, v, I::Vararg{Int, N}) where {T, N} = (s.data[I] = v)
+
+function Base.setindex!(s::ClassicSudoku{T, N}, v, I::Vararg{Int, N}) where {T, N}
+    if !(v in s.vals)
+		error("Added value is not in set of values")
+	end
+	
+	s.data[I] = v
+end
 
 function solve!(s::ClassicSudoku)
 	n = size(s)[1]
