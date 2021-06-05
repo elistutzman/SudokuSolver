@@ -71,6 +71,45 @@ function Base.setindex!(s::ClassicSudoku{T, N}, v, I::Vararg{Int, N}) where {T, 
 	s.data[I] = v
 end
 
+function nonzero_constraint(m::Model, dims::Int)
+	X = m[:X]
+	for i=1:dims, j=1:dims
+		@constraint(m, sum(X[i, j, k] for k=1:dims) == 1)
+	end
+end
+
+function column_constraint(m::Model, dims::Int)
+	X = m[:X]
+	for i=1:dims, k=1:dims
+		@constraint(m, sum(X[i, j, k] for j=1:dims) == 1)
+	end
+end
+
+function row_constraint(m::Model, dims::Int)
+	X = m[:X]
+	for j=1:dims, k=1:dims
+		@constraint(m, sum(X[i, j, k] for i=1:dims) == 1)
+	end
+end
+
+function cage_unique_constraint(m::Model, dims::Int, cage_dims::NTuple{2, Int})
+	X = m[:X]
+	n_cage_row = Int(dims / cage_dims[1])
+	n_cage_col = Int(dims / cage_dims[2])
+	for a=1:cage_dims[1], b=1:cage_dims[2], k=1:dims
+		@constraint(m, sum(X[i, j, k] for i=(n_cage_row * a - (cage_dims[1] - 1)):(n_cage_row * a) for j=(n_cage_col * b - (cage_dims[2] - 1)):(n_cage_col * b)) == 1)
+	end
+end
+
+function initial_constraint(m::Model, s::ClassicSudoku, dims::Int)
+	X = m[:X]
+	for i=1:dims, j=1:dims
+		if s[i, j] in s.vals
+			@constraint(m, X[i, j, findfirst(isequal(s[i, j]), s.vals)] == 1)
+		end
+	end
+end
+
 function solve!(s::ClassicSudoku)
 	n = size(s)[1]
 	m = Int(sqrt(n))
@@ -79,31 +118,19 @@ function solve!(s::ClassicSudoku)
 	@variable(model, X[1:n, 1:n, 1:n], Bin)
 
 	# Each cell has a non-zero value
-	for i=1:n, j=1:n
-		@constraint(model, sum(X[i, j, k] for k=1:n) == 1)
-	end
+	nonzero_constraint(model, n)
 
 	# Each column has one of each value
-	for i=1:n, k=1:n
-		@constraint(model, sum(X[i, j, k] for j=1:n) == 1)
-	end
+	column_constraint(model, n)
 
 	# Each row has one of each value
-	for j=1:n, k=1:n
-		@constraint(model, sum(X[i, j, k] for i=1:n) == 1)
-	end
+	row_constraint(model, n)
 	
 	# Each cage has one of each value
-	for a=1:m, b=1:m, k=1:n
-		@constraint(model, sum(X[i, j, k] for i=3a-2:3a for j=3b-2:3b) == 1)
-	end
+	cage_unique_constraint(model, n, (m, m))
 
 	# Initialize starting conditions
-	for i=1:n, j=1:n
-		if s[i, j] ∈ s.vals
-			@constraint(model, X[i, j, findfirst(isequal(s[i, j]), s.vals)] == 1)
-		end
-	end
+	initial_constraint(model, s, n)
 
 	optimize!(model)
 	status = Int(termination_status(model))
